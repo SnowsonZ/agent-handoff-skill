@@ -32,6 +32,31 @@ git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1 || {
   exit 1
 }
 
+# Refuse to write through a symlink anywhere along a managed path: if
+# .agents (or a directory under it) is a symlink, mkdir -p and cp would
+# otherwise follow it and persist handoff files outside the target repo.
+assert_real_dir_ancestors() {
+  _rel=$1
+  _walk=$TARGET
+  _remaining=$_rel
+  while [ -n "$_remaining" ]; do
+    _seg=${_remaining%%/*}
+    case "$_remaining" in
+      */*) _remaining=${_remaining#*/} ;;
+      *) _remaining= ;;
+    esac
+    _walk=$_walk/$_seg
+    if [ -L "$_walk" ]; then
+      printf 'refusing to install: %s is a symlink; handoff-managed paths must be real directories inside the target repository\n' "${_walk#"$TARGET"/}" >&2
+      exit 1
+    fi
+  done
+}
+assert_real_dir_ancestors '.agents/skills/handoff'
+assert_real_dir_ancestors '.agents/tasks/archive'
+assert_real_dir_ancestors '.claude/skills'
+assert_real_dir_ancestors 'tools'
+
 LOCK=$TARGET/.agents/handoff.lock
 TRANSACTION=$TARGET/.agents/handoff.transaction
 WORK=$(mktemp -d)
