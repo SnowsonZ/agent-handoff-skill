@@ -32,7 +32,7 @@ metadata:
 
 ## 使用
 
-先检查当前用户消息，再使用工具。
+先检查当前会话的用户意图和已有授权，再使用工具。
 
 - 没有明确要求安装、更新、采用旧版或检查状态：立即退出，不读仓库状态，不调用脚本，不修改文件。
 - 明确要求检查：运行 `scripts/install.sh status [target]`。
@@ -40,10 +40,14 @@ metadata:
 - 明确要求更新：运行 `scripts/install.sh update [target]`。
 - 明确要求采用无锁旧版：运行 `scripts/install.sh adopt-existing [target]`。
 
-每次只选择一种模式。`target` 是用户指定的 git 仓库；省略时使用当前仓库。
+每次只选择一种模式。脚本路径相对本 Skill 目录；`target` 是用户指定的 git 仓库，省略时使用调用时的当前仓库。
 
 `status` 永不转成写操作。`install` 报告旧版时，只提示用户明确要求 `update`；不要自行升级。
 任何本地修改冲突都要停止，不得覆盖。
+
+状态为 `newer` 时不得降级；`invalid-version` 时说明版本不可识别，不尝试覆盖。`adopt-existing`
+只登记现状：与当前载荷一致时为 `current`；旧载荷记 `version: unknown` 并报告 `adopted`，
+之后只有用户明确要求更新才运行 `update`。中断恢复也必须匹配当前安装包及版本保护。
 
 ## 写模式确认
 
@@ -64,13 +68,15 @@ metadata:
 四种模式都通过本地 shell 执行 `scripts/install.sh`，不发起任何网络请求，只操作 `target` 指向的
 git 仓库：
 
-- `status`：只读，只运行 `git` 查询命令，不写任何文件。
+- `status`：读取目标和当前安装包的版本、文件哈希及 git 状态，不写目标仓库。
 - `install` / `update` / `adopt-existing`：在 `target` 仓库内写入 `AGENTS.md`/`CLAUDE.md` 的
   handoff 片段、`.agents/skills/handoff/SKILL.md`、`.agents/tasks/TEMPLATE.md`、
-  `tools/ledger.sh`、`.claude/skills/handoff` 符号链接；写入前逐项比对内容哈希，遇到不在
+  `tools/ledger.sh`、`.claude/skills/handoff` 符号链接及安装锁；其中 adopt-existing 仅登记安装锁。
+  写入前逐项比对内容哈希，遇到不在
   预期旧/新哈希范围内的本地修改会中止，不覆盖。
 
-不读取、不上传、不外发 `target` 仓库之外的任何数据。
+安装器会读取自身打包载荷，并使用自动清理的临时工作目录；不读取无关仓库或会话数据，
+不上传、不外发任何数据。
 
 以上是安装器自身的边界。**被装进去的 handoff 运行时协议另有一条灾后路径**：任务棒丢失时，
 它允许借助外部工具读取上一个会话的历史来重建任务棒。该路径要求先取得用户明确同意才能读取，

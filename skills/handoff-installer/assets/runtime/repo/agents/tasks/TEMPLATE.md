@@ -1,7 +1,7 @@
 ---
 task: t-YYYY-MM-DD-短名
 status: draft
-hop: 1
+hop: 0
 owner:
 ack:
 updated: YYYY-MM-DDTHH:MM:SS+08:00
@@ -18,7 +18,7 @@ updated: YYYY-MM-DDTHH:MM:SS+08:00
 
 ## Done
 
-- [ ] 已完成的步骤 —— 附产物路径
+- [x] 已完成的成果 —— 附产物路径与验收证据；尚无完成项时写 `- (none)`
 
 ## Next
 
@@ -28,7 +28,8 @@ updated: YYYY-MM-DDTHH:MM:SS+08:00
 
 ## Decisions
 
-- **做了什么选择** —— 因为什么。已考虑并排除：…（YYYY-MM-DD, agent 标识）
+- **仍有效的选择** —— 理由与重要排除项。（YYYY-MM-DD, agent 标识）
+- 历史内容允许按 Skill 规程摘要化；来源仅在用户要求读取时展开，不能代替当前必需信息。
 
 ## Open questions
 

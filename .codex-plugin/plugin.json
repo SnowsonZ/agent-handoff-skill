@@ -1,6 +1,6 @@
 {
   "name": "agent-handoff-skill",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Install and update a repository-local handoff protocol for auditable multi-agent task relay.",
   "author": {
     "name": "Snowson",

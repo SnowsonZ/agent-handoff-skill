@@ -51,6 +51,31 @@ validate_payload_sources() {
       return 1
     fi
   done
+  if ! valid_version "$VERSION"; then
+    printf 'installer package has an invalid version: %s\n' "$VERSION" >&2
+    return 1
+  fi
+}
+
+valid_version() {
+  printf '%s\n' "$1" | awk '
+    /^[0-9]+\.[0-9]+\.[0-9]+$/ { valid=1 }
+    END { exit !valid }
+  '
+}
+
+compare_versions() {
+  # Prints -1 when the first version is older, 0 when equal, and 1 when newer.
+  awk -F . -v left="$1" -v right="$2" '
+    BEGIN {
+      split(left, l, "."); split(right, r, ".")
+      for (i = 1; i <= 3; i++) {
+        if ((l[i] + 0) < (r[i] + 0)) { print -1; exit }
+        if ((l[i] + 0) > (r[i] + 0)) { print 1; exit }
+      }
+      print 0
+    }
+  '
 }
 
 sha256_stream() {
@@ -127,26 +152,79 @@ new_object_hash() {
   esac
 }
 
+transaction_objects() {
+  printf '%s\t%s\n' \
+    file .agents/skills/handoff/SKILL.md \
+    file .agents/tasks/TEMPLATE.md \
+    file tools/ledger.sh \
+    fragment AGENTS.md#handoff \
+    fragment CLAUDE.md#handoff \
+    fragment .claude/skills/handoff#target
+}
+
+valid_stored_hash() {
+  case "$1" in
+    missing) return 0 ;;
+  esac
+  printf '%s\n' "$1" | grep -Eq '^[0-9a-f]{64}$'
+}
+
+valid_new_hash() {
+  printf '%s\n' "$1" | grep -Eq '^[0-9a-f]{64}$'
+}
+
+is_transaction_object() {
+  transaction_objects | awk -F '\t' -v kind="$1" -v id="$2" '
+    $1 == kind && $2 == id { found=1 }
+    END { exit !found }
+  '
+}
+
+validate_transaction_shape() {
+  [ -s "$TRANSACTION" ] || {
+    printf 'invalid transaction: no records\n' >&2
+    return 1
+  }
+  _tab=$(printf '\t')
+  : > "$WORK/transaction-objects"
+  _count=0
+  while IFS="$_tab" read -r _kind _id _old _new _extra
+  do
+    _count=$((_count + 1))
+    if [ -z "$_kind" ] || [ -z "$_id" ] || [ -z "$_old" ] || [ -z "$_new" ] || [ -n "$_extra" ] || \
+       ! is_transaction_object "$_kind" "$_id" || ! valid_stored_hash "$_old" || ! valid_new_hash "$_new"; then
+      printf 'invalid transaction record: %s\n' "$_id" >&2
+      return 1
+    fi
+    printf '%s\t%s\n' "$_kind" "$_id" >> "$WORK/transaction-objects"
+  done < "$TRANSACTION"
+  if [ "$_count" -ne 6 ] || [ "$(sort "$WORK/transaction-objects" | uniq | wc -l | tr -d ' ')" -ne 6 ]; then
+    printf 'invalid transaction: expected six unique managed objects\n' >&2
+    return 1
+  fi
+  transaction_objects | while IFS="$_tab" read -r _kind _id
+  do
+    if ! grep -q "^$_kind$_tab$_id$" "$WORK/transaction-objects"; then
+      printf 'invalid transaction: missing managed object %s\n' "$_id" >&2
+      return 1
+    fi
+  done
+}
+
 write_transaction() {
   mkdir -p "$TARGET/.agents"
   : > "$WORK/transaction"
-  for _entry in \
-    'file .agents/skills/handoff/SKILL.md' \
-    'file .agents/tasks/TEMPLATE.md' \
-    'file tools/ledger.sh' \
-    'fragment AGENTS.md#handoff' \
-    'fragment CLAUDE.md#handoff' \
-    'fragment .claude/skills/handoff#target'
+  transaction_objects | while IFS="$(printf '\t')" read -r _kind _id
   do
-    set -- $_entry
-    _old=$(current_object_hash "$1" "$2")
-    _new=$(new_object_hash "$1" "$2")
-    printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$_old" "$_new" >> "$WORK/transaction"
+    _old=$(current_object_hash "$_kind" "$_id")
+    _new=$(new_object_hash "$_kind" "$_id")
+    printf '%s\t%s\t%s\t%s\n' "$_kind" "$_id" "$_old" "$_new" >> "$WORK/transaction"
   done
   mv "$WORK/transaction" "$TRANSACTION"
 }
 
 validate_transaction() {
+  validate_transaction_shape || return 1
   _tab=$(printf '\t')
   while IFS="$_tab" read -r _kind _id _old _new
   do
@@ -154,6 +232,20 @@ validate_transaction() {
     _actual=$(current_object_hash "$_kind" "$_id") || return 1
     if [ "$_actual" != "$_old" ] && [ "$_actual" != "$_new" ]; then
       printf 'transaction conflict: %s has content outside old/new hashes\n' "$_id" >&2
+      return 1
+    fi
+  done < "$TRANSACTION"
+}
+
+transaction_matches_payload() {
+  validate_transaction_shape || return 1
+  _tab=$(printf '\t')
+  while IFS="$_tab" read -r _kind _id _old _new
+  do
+    [ -n "$_kind" ] || continue
+    _expected=$(new_object_hash "$_kind" "$_id") || return 1
+    if [ "$_new" != "$_expected" ]; then
+      printf 'transaction package mismatch: %s does not match this installer\n' "$_id" >&2
       return 1
     fi
   done < "$TRANSACTION"
@@ -181,6 +273,15 @@ complete_legacy_install() {
   [ "$(hash_skill_link "$TARGET/.claude/skills/handoff")" = "$(hash_text '../../.agents/skills/handoff')" ] || return 1
 }
 
+current_payload_matches() {
+  transaction_objects | while IFS="$(printf '\t')" read -r _kind _id
+  do
+    _actual=$(current_object_hash "$_kind" "$_id") || return 1
+    _expected=$(new_object_hash "$_kind" "$_id") || return 1
+    [ "$_actual" = "$_expected" ] || return 1
+  done
+}
+
 validate_target_conflicts() {
   _entry=$TARGET/.claude/skills/handoff
   if [ -e "$_entry" ] || [ -L "$_entry" ]; then
@@ -199,10 +300,21 @@ detect_state() {
   if [ -f "$LOCK" ]; then
     if ! verify_lock; then
       printf 'modified\n'
-    elif [ "$(awk '$1=="version:" {print $2; exit}' "$LOCK")" = "$VERSION" ]; then
-      printf 'current\n'
     else
-      printf 'outdated\n'
+      _locked_version=$(awk '$1=="version:" {print $2; exit}' "$LOCK")
+      if [ "$_locked_version" = unknown ]; then
+        printf 'adopted\n'
+      elif ! valid_version "$_locked_version"; then
+        printf 'invalid-version\n'
+      elif ! valid_version "$VERSION"; then
+        printf 'invalid-version\n'
+      else
+        case "$(compare_versions "$_locked_version" "$VERSION")" in
+          -1) printf 'outdated\n' ;;
+          0) printf 'current\n' ;;
+          1) printf 'newer\n' ;;
+        esac
+      fi
     fi
   elif [ -f "$TARGET/.agents/skills/handoff/SKILL.md" ] || \
        [ -f "$TARGET/.agents/tasks/TEMPLATE.md" ] || \
@@ -215,9 +327,10 @@ detect_state() {
 }
 
 write_lock() {
+  _lock_version=${1:-$VERSION}
   mkdir -p "$TARGET/.agents"
   {
-    printf 'version: %s\n' "$VERSION"
+    printf 'version: %s\n' "$_lock_version"
     printf 'managed_files:\n'
     printf '  .agents/skills/handoff/SKILL.md: %s\n' "$(hash_file "$TARGET/.agents/skills/handoff/SKILL.md")"
     printf '  .agents/tasks/TEMPLATE.md: %s\n' "$(hash_file "$TARGET/.agents/tasks/TEMPLATE.md")"
@@ -289,6 +402,19 @@ commit_payload() {
 
 recover_transaction() {
   [ -f "$TRANSACTION" ] || return 0
+  transaction_matches_payload || return 1
+  if [ -f "$LOCK" ]; then
+    _locked_version=$(awk '$1=="version:" {print $2; exit}' "$LOCK")
+    if [ "$_locked_version" != unknown ] && ! valid_version "$_locked_version"; then
+      printf 'transaction recovery refuses an invalid installed version\n' >&2
+      return 1
+    fi
+    if valid_version "$_locked_version" && valid_version "$VERSION" && \
+       [ "$(compare_versions "$_locked_version" "$VERSION")" = 1 ]; then
+      printf 'transaction recovery would downgrade version %s\n' "$_locked_version" >&2
+      return 1
+    fi
+  fi
   validate_transaction || return 1
   apply_payload
   write_lock
@@ -303,6 +429,10 @@ if [ "$MODE" != status ]; then
 fi
 
 if [ "$STATE" = interrupted ] && [ "$MODE" != status ]; then
+  if [ "$MODE" = adopt-existing ]; then
+    printf 'interrupted handoff transaction found; use install or update to recover\n' >&2
+    exit 2
+  fi
   recover_transaction || exit 3
   STATE=$(detect_state)
   printf 'state=%s\n' "$STATE"
@@ -318,11 +448,23 @@ case "$MODE:$STATE" in
     printf 'older handoff version found; use update\n' >&2
     exit 2
     ;;
+  install:adopted)
+    printf 'adopted handoff files differ from this version; use update\n' >&2
+    exit 2
+    ;;
+  install:newer|update:newer)
+    printf 'newer handoff version found; refusing to downgrade\n' >&2
+    exit 2
+    ;;
+  install:invalid-version|update:invalid-version)
+    printf 'installed handoff version is missing or invalid; refusing to overwrite\n' >&2
+    exit 2
+    ;;
   install:legacy|update:legacy)
     printf 'handoff files exist without a lock; use adopt-existing\n' >&2
     exit 2
     ;;
-  update:outdated) commit_payload ;;
+  update:outdated|update:adopted) commit_payload ;;
   update:uninstalled)
     printf 'handoff is not installed; use install\n' >&2
     exit 2
@@ -332,9 +474,13 @@ case "$MODE:$STATE" in
       printf 'cannot adopt an incomplete handoff installation\n' >&2
       exit 2
     fi
-    write_lock
+    if current_payload_matches; then
+      write_lock "$VERSION"
+    else
+      write_lock unknown
+    fi
     ;;
-  adopt-existing:uninstalled|adopt-existing:outdated)
+  adopt-existing:uninstalled|adopt-existing:outdated|adopt-existing:newer|adopt-existing:invalid-version)
     printf 'adopt-existing requires a complete lockless installation\n' >&2
     exit 2
     ;;
@@ -348,4 +494,5 @@ case "$MODE:$STATE" in
     ;;
 esac
 
-printf 'state=current\n'
+STATE=$(detect_state)
+printf 'state=%s\n' "$STATE"
