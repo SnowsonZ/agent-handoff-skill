@@ -17,7 +17,8 @@ description: Use when starting work in this repository, when preparing to end a 
   只是追溯入口，不是必读清单；不得自动展开、递归跟读或把压缩前全文重新灌入上下文。
 - 摘要有缺口时说明具体缺口，不自动补读。排查、审计、核实需求本身，以及你认为“需要更多背景”，
   都不等于读取压缩前内容的授权。得到读取要求后，只读取用户指定范围；已有明确要求不重复询问。
-- 历史判断不能直接覆盖当前有效结论。`tools/ledger.sh` 的摘要查询、提交号及对象存在性检查
+- 历史判断不能直接覆盖当前有效结论。`.agents/skills/handoff/ledger.sh` 的摘要查询、提交号及
+  对象存在性检查
   不读取历史原文，可以用于查账和验证来源。
 
 ## 接棒
@@ -74,7 +75,7 @@ Hop: <hop>
 Agent: <agent>"
 ```
 
-只暂存本轮负责的文件。用 `sh tools/ledger.sh <task>` 查提交摘要，核对 hop 连续且无重复；
+只暂存本轮负责的文件。用 `sh .agents/skills/handoff/ledger.sh <task>` 查提交摘要，核对 hop 连续且无重复；
 这不会自动加载历史任务正文。
 
 ## 压缩
@@ -125,7 +126,7 @@ git commit -m "<英文单行总结>" -m "Task-Id: <task>
 Hop: <hop>
 Agent: <agent>" &&
 git show HEAD:.agents/tasks/archive/<task>.md &&
-sh tools/ledger.sh <task>
+sh .agents/skills/handoff/ledger.sh <task>
 ```
 
 命令用 `&&` 串接，存在性检查、移动或提交任一步失败都不再继续后续步骤。

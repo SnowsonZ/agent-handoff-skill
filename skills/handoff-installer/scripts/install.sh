@@ -8,7 +8,9 @@ AGENTS_SOURCE=$ROOT/assets/runtime/AGENTS.block.md
 SKILL_SOURCE=$ROOT/assets/runtime/repo/agents/skills/handoff/SKILL.md
 TEMPLATE_SOURCE=$ROOT/assets/runtime/repo/agents/tasks/TEMPLATE.md
 IMPORT_SOURCE=$ROOT/assets/runtime/repo/CLIENT_IMPORT
-LEDGER_SOURCE=$ROOT/scripts/ledger.sh
+LEDGER_SOURCE=$ROOT/assets/runtime/repo/agents/skills/handoff/ledger.sh
+LEGACY_LEDGER_TARGET=tools/ledger.sh
+LEDGER_TARGET=.agents/skills/handoff/ledger.sh
 BEGIN='<!-- handoff:begin -->'
 END='<!-- handoff:end -->'
 
@@ -55,7 +57,6 @@ assert_real_dir_ancestors() {
 assert_real_dir_ancestors '.agents/skills/handoff'
 assert_real_dir_ancestors '.agents/tasks/archive'
 assert_real_dir_ancestors '.claude/skills'
-assert_real_dir_ancestors 'tools'
 
 LOCK=$TARGET/.agents/handoff.lock
 TRANSACTION=$TARGET/.agents/handoff.transaction
@@ -169,7 +170,7 @@ new_object_hash() {
   case "$_kind:$_id" in
     file:.agents/skills/handoff/SKILL.md) hash_file "$SKILL_SOURCE" ;;
     file:.agents/tasks/TEMPLATE.md) hash_file "$TEMPLATE_SOURCE" ;;
-    file:tools/ledger.sh) hash_file "$LEDGER_SOURCE" ;;
+    file:.agents/skills/handoff/ledger.sh) hash_file "$LEDGER_SOURCE" ;;
     fragment:AGENTS.md#handoff) hash_file "$AGENTS_SOURCE" ;;
     fragment:CLAUDE.md#handoff) head -1 "$IMPORT_SOURCE" | sha256_stream ;;
     fragment:.claude/skills/handoff#target) hash_text '../../.agents/skills/handoff' ;;
@@ -181,7 +182,7 @@ transaction_objects() {
   printf '%s\t%s\n' \
     file .agents/skills/handoff/SKILL.md \
     file .agents/tasks/TEMPLATE.md \
-    file tools/ledger.sh \
+    file .agents/skills/handoff/ledger.sh \
     fragment AGENTS.md#handoff \
     fragment CLAUDE.md#handoff \
     fragment .claude/skills/handoff#target
@@ -276,23 +277,38 @@ transaction_matches_payload() {
   done < "$TRANSACTION"
 }
 
-lock_value() {
-  awk -v key="$1:" '$1==key {print $2; exit}' "$LOCK"
-}
-
 verify_lock() {
-  [ "$(lock_value '.agents/skills/handoff/SKILL.md')" = "$(hash_file "$TARGET/.agents/skills/handoff/SKILL.md")" ] || return 1
-  [ "$(lock_value '.agents/tasks/TEMPLATE.md')" = "$(hash_file "$TARGET/.agents/tasks/TEMPLATE.md")" ] || return 1
-  [ "$(lock_value 'tools/ledger.sh')" = "$(hash_file "$TARGET/tools/ledger.sh")" ] || return 1
-  [ "$(lock_value 'AGENTS.md#handoff')" = "$(hash_agents_block "$TARGET/AGENTS.md")" ] || return 1
-  [ "$(lock_value 'CLAUDE.md#handoff')" = "$(hash_import "$TARGET/CLAUDE.md")" ] || return 1
-  [ "$(lock_value '.claude/skills/handoff#target')" = "$(hash_skill_link "$TARGET/.claude/skills/handoff")" ] || return 1
+  # Verify every key recorded in the lock against the file on disk. Keys are
+  # per-lock-version, so a lock written by an older installer (which managed
+  # tools/ledger.sh) still verifies and yields outdated instead of a false
+  # modified when the managed paths change between versions.
+  _section=
+  : > "$WORK/lock-entries"
+  while IFS= read -r _line; do
+    case $_line in
+      'managed_files:') _section=file ;;
+      'managed_fragments:') _section=fragment ;;
+      '  '*)
+        [ -n "$_section" ] || return 1
+        _entry=${_line#'  '}
+        _stored=${_entry##*: }
+        _key=${_entry%: *}
+        [ -n "$_key" ] && [ -n "$_stored" ] || return 1
+        printf '%s\t%s\t%s\n' "$_section" "$_key" "$_stored" >> "$WORK/lock-entries"
+        ;;
+    esac
+  done < "$LOCK"
+  [ -s "$WORK/lock-entries" ] || return 1
+  while IFS="$(printf '\t')" read -r _kind _key _stored; do
+    _actual=$(current_object_hash "$_kind" "$_key") || return 1
+    [ "$_actual" = "$_stored" ] || return 1
+  done < "$WORK/lock-entries"
 }
 
 complete_legacy_install() {
   [ -f "$TARGET/.agents/skills/handoff/SKILL.md" ] || return 1
   [ -f "$TARGET/.agents/tasks/TEMPLATE.md" ] || return 1
-  [ -f "$TARGET/tools/ledger.sh" ] || return 1
+  [ -f "$TARGET/$LEDGER_TARGET" ] || [ -f "$TARGET/$LEGACY_LEDGER_TARGET" ] || return 1
   [ "$(hash_agents_block "$TARGET/AGENTS.md")" != missing ] || return 1
   [ "$(hash_import "$TARGET/CLAUDE.md")" != missing ] || return 1
   [ "$(hash_skill_link "$TARGET/.claude/skills/handoff")" = "$(hash_text '../../.agents/skills/handoff')" ] || return 1
@@ -343,7 +359,8 @@ detect_state() {
     fi
   elif [ -f "$TARGET/.agents/skills/handoff/SKILL.md" ] || \
        [ -f "$TARGET/.agents/tasks/TEMPLATE.md" ] || \
-       [ -f "$TARGET/tools/ledger.sh" ] || \
+       [ -f "$TARGET/$LEDGER_TARGET" ] || \
+       [ -f "$TARGET/$LEGACY_LEDGER_TARGET" ] || \
        grep -qF "$BEGIN" "$TARGET/AGENTS.md" 2>/dev/null; then
     printf 'legacy\n'
   else
@@ -357,13 +374,26 @@ write_lock() {
   {
     printf 'version: %s\n' "$_lock_version"
     printf 'managed_files:\n'
-    printf '  .agents/skills/handoff/SKILL.md: %s\n' "$(hash_file "$TARGET/.agents/skills/handoff/SKILL.md")"
-    printf '  .agents/tasks/TEMPLATE.md: %s\n' "$(hash_file "$TARGET/.agents/tasks/TEMPLATE.md")"
-    printf '  tools/ledger.sh: %s\n' "$(hash_file "$TARGET/tools/ledger.sh")"
+    transaction_objects | while IFS="$(printf '\t')" read -r _kind _id; do
+      if [ "$_kind" = file ]; then
+        printf '  %s: %s\n' "$_id" "$(current_object_hash "$_kind" "$_id")"
+      fi
+    done
+    # Keep a pre-0.2.0 ledger location under lock protection while the file
+    # still exists: adopt-existing records it so a later update can migrate
+    # it with the same hash guard as any managed file, instead of leaving a
+    # stray ledger behind. Once migration removes the file the key is gone.
+    if [ -f "$TARGET/$LEGACY_LEDGER_TARGET" ]; then
+      printf '  %s: %s\n' \
+        "$LEGACY_LEDGER_TARGET" \
+        "$(hash_file "$TARGET/$LEGACY_LEDGER_TARGET")"
+    fi
     printf 'managed_fragments:\n'
-    printf '  AGENTS.md#handoff: %s\n' "$(hash_agents_block "$TARGET/AGENTS.md")"
-    printf '  CLAUDE.md#handoff: %s\n' "$(hash_import "$TARGET/CLAUDE.md")"
-    printf '  .claude/skills/handoff#target: %s\n' "$(hash_skill_link "$TARGET/.claude/skills/handoff")"
+    transaction_objects | while IFS="$(printf '\t')" read -r _kind _id; do
+      if [ "$_kind" = fragment ]; then
+        printf '  %s: %s\n' "$_id" "$(current_object_hash "$_kind" "$_id")"
+      fi
+    done
   } > "$WORK/lock"
   mv "$WORK/lock" "$LOCK"
 }
@@ -407,20 +437,36 @@ write_skill_link() {
 }
 
 apply_payload() {
-  mkdir -p "$TARGET/.agents/skills/handoff" "$TARGET/.agents/tasks/archive" "$TARGET/tools"
+  mkdir -p "$TARGET/.agents/skills/handoff" "$TARGET/.agents/tasks/archive"
   cp "$SKILL_SOURCE" "$TARGET/.agents/skills/handoff/SKILL.md"
   cp "$TEMPLATE_SOURCE" "$TARGET/.agents/tasks/TEMPLATE.md"
-  cp "$LEDGER_SOURCE" "$TARGET/tools/ledger.sh"
-  chmod +x "$TARGET/tools/ledger.sh"
+  cp "$LEDGER_SOURCE" "$TARGET/$LEDGER_TARGET"
+  chmod +x "$TARGET/$LEDGER_TARGET"
   write_skill_link
   write_agents_block
   write_import
+}
+
+migrate_legacy_ledger() {
+  # Move a pre-0.2.0 tools/ledger.sh (still recorded in the old lock) out of
+  # the repository root once the new payload is in place. Runs after
+  # apply_payload and before write_lock overwrites the old lock.
+  [ -f "$LOCK" ] || return 0
+  _stored=$(awk -F ': ' '$1 == "  tools/ledger.sh" { print $2; exit }' "$LOCK")
+  [ -n "$_stored" ] || return 0
+  if [ -f "$TARGET/$LEGACY_LEDGER_TARGET" ] && \
+     [ "$(hash_file "$TARGET/$LEGACY_LEDGER_TARGET")" = "$_stored" ]; then
+    rm "$TARGET/$LEGACY_LEDGER_TARGET"
+    rmdir "$TARGET/tools" 2>/dev/null || :
+    printf 'migrated legacy ledger: %s -> %s\n' "$LEGACY_LEDGER_TARGET" "$LEDGER_TARGET"
+  fi
 }
 
 commit_payload() {
   validate_target_conflicts
   write_transaction
   apply_payload
+  migrate_legacy_ledger
   write_lock
   rm -f "$TRANSACTION"
 }
@@ -442,6 +488,7 @@ recover_transaction() {
   fi
   validate_transaction || return 1
   apply_payload
+  migrate_legacy_ledger
   write_lock
   rm -f "$TRANSACTION"
 }

@@ -70,10 +70,12 @@ git 仓库：
 
 - `status`：读取目标和当前安装包的版本、文件哈希及 git 状态，不写目标仓库。
 - `install` / `update` / `adopt-existing`：在 `target` 仓库内写入 `AGENTS.md`/`CLAUDE.md` 的
-  handoff 片段、`.agents/skills/handoff/SKILL.md`、`.agents/tasks/TEMPLATE.md`、
-  `tools/ledger.sh`、`.claude/skills/handoff` 符号链接及安装锁；其中 adopt-existing 仅登记安装锁。
+  handoff 片段、`.agents/skills/handoff/SKILL.md`、`.agents/skills/handoff/ledger.sh`、
+  `.agents/tasks/TEMPLATE.md`、`.claude/skills/handoff` 符号链接及安装锁；其中 adopt-existing 仅登记安装锁。
   写入前逐项比对内容哈希，遇到不在
   预期旧/新哈希范围内的本地修改会中止，不覆盖。
+  `update` 遇到 0.2.0 之前的旧版安装时，会在新载荷就位后把仍与旧锁一致的 `tools/ledger.sh`
+  迁移为 `.agents/skills/handoff/ledger.sh` 并删除旧文件（`tools/` 目录为空时一并移除）。
 
 安装器会读取自身打包载荷，并使用自动清理的临时工作目录；不读取无关仓库或会话数据，
 不上传、不外发任何数据。

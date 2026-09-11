@@ -1,3 +1,15 @@
+# v0.2.0
+
+账本脚本随运行时 skill 分发：安装位置从业务仓库根目录 `tools/ledger.sh` 改为
+`.agents/skills/handoff/ledger.sh`，目标仓库根目录不再出现协议自己的 `tools/` 目录。
+运行时规程中的调用命令、目录说明与全部测试同步更新；账本本身仍是只读脚本，按 Task-Id
+精确过滤的行为不变。
+
+旧安装自动迁移：`update` 在新载荷就位后把仍与锁记录一致的 `tools/ledger.sh` 迁入 skill
+目录并删除旧文件（`tools/` 目录为空时一并移除）；旧文件被本地改动过则保持 `modified`
+拒绝写入。锁校验改为按锁文件自身登记的键核对，`0.1.x` 旧锁判为 `outdated` 而非
+`modified`；无锁旧版先 `adopt-existing` 再 `update` 的路径同样迁移，不会留下游离的旧账本。
+
 # v0.1.12
 
 修复 `0.1.11` 已知问题：安装器新增 `assert_real_dir_ancestors` 守卫，在写入

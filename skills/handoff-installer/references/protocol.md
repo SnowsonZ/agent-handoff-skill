@@ -6,16 +6,19 @@
 
 - `assets/runtime/AGENTS.block.md`：仓库规则固定块
 - `assets/runtime/repo/agents/skills/handoff/SKILL.md`：运行时 Skill
+- `assets/runtime/repo/agents/skills/handoff/ledger.sh`：只读账本脚本
 - `assets/runtime/repo/agents/tasks/TEMPLATE.md`：任务棒模板
-- `scripts/ledger.sh`：只读账本脚本
 
 安装结果中的运行时 Skill、模板和账本必须是普通文件，不能保留指向安装 Skill 的链接。
+载荷树 `assets/runtime/repo/` 与目标仓库的 `.agents/` 布局保持镜像。
 
 ## 写入边界
 
 - `status`：只读
 - `install`：只处理未安装仓库；当前版本 no-op
-- `update`：只处理锁文件完整且版本较旧、或已采用但版本未知的仓库
+- `update`：只处理锁文件完整且版本较旧、或已采用但版本未知的仓库；锁校验按锁文件自身登记的
+  键逐一核对磁盘哈希，因此旧版本（0.2.0 前管理 `tools/ledger.sh`）的安装判为 `outdated`
+  而非 `modified`。写入后把仍与旧锁一致的 `tools/ledger.sh` 迁移进 skill 目录
 - `adopt-existing`：只为无锁旧版生成锁，不同时升级；六个受管对象全部匹配当前载荷时记录当前版本，否则记录 `version: unknown` 并显示 `state=adopted`
 - 本地修改：所有写模式停止
 
