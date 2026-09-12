@@ -1,38 +1,37 @@
-# 安装协议维护参考
+# 全局运行时维护参考
 
-安装 Skill 只负责把运行时协议落进 git 仓库。安装完成后，业务仓库必须在没有安装 Skill 的环境中独立接棒、交棒和查账。
+`handoff-installer` 是日常运行时 Skill，不再安装仓库级运行时载荷。稳定名称、显示名和版本保持
+`handoff-installer` / Handoff / `0.3.0`。
 
 ## 单一来源
 
-- `assets/runtime/AGENTS.block.md`：仓库规则固定块
-- `assets/runtime/repo/agents/skills/handoff/SKILL.md`：运行时 Skill
-- `assets/runtime/repo/agents/skills/handoff/ledger.sh`：只读账本脚本
-- `assets/runtime/repo/agents/tasks/TEMPLATE.md`：任务棒模板
+- `PROTOCOL.md`：所有仓库共享的接棒、交棒、归档、压缩和历史读取规程。
+- `assets/TEMPLATE.md`：仅在用户明确建棒时读取，写入目标仓库的 `.agents/tasks/current.md`。
+- `scripts/ledger.sh`：只读账本；在目标仓库根目录执行
+  `sh <skill-dir>/scripts/ledger.sh <task-id>`。
+- `scripts/setup.py`：用户级 CLI 短入口的 `enable`、`status`、`disable`。
+- `scripts/migrate.py`：旧仓库状态检查和一次性、可恢复的旧协议清理。
 
-安装结果中的运行时 Skill、模板和账本必须是普通文件，不能保留指向安装 Skill 的链接。
-载荷树 `assets/runtime/repo/` 与目标仓库的 `.agents/` 布局保持镜像。
+任务棒、归档与业务规则归业务仓库所有；全局 Skill 绝不替代它们。任务棒不记录本机安装目录，文档中的
+`<skill-dir>` 是运行时占位符。
 
-## 写入边界
+## 入口与升级
 
-- `status`：只读
-- `install`：只处理未安装仓库；当前版本 no-op
-- `update`：只处理锁文件完整且版本较旧、或已采用但版本未知的仓库；锁校验按锁文件自身登记的
-  键逐一核对磁盘哈希，因此旧版本（0.2.0 前管理 `tools/ledger.sh`）的安装判为 `outdated`
-  而非 `modified`。写入后把仍与旧锁一致的 `tools/ledger.sh` 迁移进 skill 目录
-- `adopt-existing`：只为无锁旧版生成锁，不同时升级；六个受管对象全部匹配当前载荷时记录当前版本，否则记录 `version: unknown` 并显示 `state=adopted`
-- 本地修改：所有写模式停止
+每台机器先安装全局 Skill，再由用户明确请求运行一次 `setup.py enable --agents ...`。之后升级全局
+Skill 即同时更新所有仓库使用的规程；升级本身不改业务仓库。`setup.py status` 只读，`disable` 只移除
+对应入口。
 
-锁文件的版本必须是 `X.Y.Z` 数字版本。安装器按三个数字段比较版本：较旧为
-`state=outdated`、相同为 `state=current`、较新为 `state=newer`；缺失或非法版本为
-`state=invalid-version`。`newer` 和 `invalid-version` 的写模式都会拒绝写入，避免降级或
-覆盖无法确认的安装。
+`tools/upgrade-skill.py` 仍是可选协调器：默认只安装或升级全局 Skill；显式 `--repo` 仅调用新迁移器
+清理该旧仓库，不安装任何仓库载荷。
 
-中断事务仅可由创建它的同一载荷恢复：事务必须恰好记录六个受管对象各一次，且每行的
-对象、旧哈希和新哈希均有效；每个目标的新哈希还必须匹配当前安装包的对应对象哈希。
-锁存在时只能恢复到合法且不高于当前安装包的版本，或 `unknown`。校验失败时保留事务和
-目标文件，停止写入。
+旧部署在下次开工时检查，不依赖任务棒存在；无任务时按 PROTOCOL.md 的开工分支迁移，不建棒。
 
-`adopt-existing` 不参与中断恢复。发现事务时它只报错并保留现状；必须显式使用 `install`
-或 `update` 恢复，避免“只登记锁”的模式写入载荷。
+## 迁移边界
 
-规则文件只替换 handoff markers 内部；标记外内容逐字保留。活动任务棒、归档和 git 历史永不覆盖。
+`migrate.py status [repo-root]` 默认把当前工作目录解析为 git 根目录，输出 JSON，`state` 只能是
+`clean`、`legacy`、`blocked` 或 `interrupted`。`migrate [repo-root]` 同样默认当前 git 根目录。
+
+迁移仅删除旧锁证明的旧协议、模板、旧 runtime Skill、ledger 与 `AGENTS.md` 的 handoff 标记块；
+保留 `.agents/tasks/`、归档、业务 `CLAUDE.md` 导入、所有非 handoff 内容和 git 历史。一次清理写入新的
+`.agents/handoff-migration.json` 事务记录。发现旧 `.agents/handoff.transaction` 时报告
+`blocked` 并停止；必须使用原版本恢复，不能自动执行旧 `install.sh`。

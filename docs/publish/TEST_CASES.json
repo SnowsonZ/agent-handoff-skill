@@ -1,46 +1,51 @@
 {
   "positive": [
     {
-      "prompt": "Use the handoff-installer skill to install handoff in this git repository.",
-      "expected_behavior": "Run install mode only after confirming the target is a git repository and has no conflicting handoff installation.",
-      "expected_result": "Repository-local runtime skill, task template, protocol block, ledger script, and .agents/handoff.lock are created."
+      "prompt": "Continue the handoff task recorded in this repository.",
+      "expected_behavior": "Load the global Handoff Skill, read the baton and owner state, restate Intent and the first Next item, then run migration before writing ack or owner.",
+      "expected_result": "A clean repository receives no migration files; a verified legacy repository is cleaned without changing task data or business rules."
     },
     {
-      "prompt": "Use the handoff-installer skill to check the handoff installation status.",
-      "expected_behavior": "Run status mode without writing files.",
-      "expected_result": "Report one stable installation state and leave the repository tree unchanged."
+      "prompt": "Use handoff-installer to review this repository's relay ledger only.",
+      "expected_behavior": "Run migrate.py status and the global read-only ledger command without migration or baton writes.",
+      "expected_result": "Report the JSON migration state and ledger result while leaving the tree unchanged."
     },
     {
-      "prompt": "Install handoff again in a repository that already has the current version.",
-      "expected_behavior": "Detect the current lock and treat the request as a no-op.",
-      "expected_result": "Return success without changing any managed file."
+      "prompt": "Enable Handoff for Codex and Claude on this machine.",
+      "expected_behavior": "Request or use the explicit enable authorization and run setup.py enable only for the requested agents.",
+      "expected_result": "User-level entry points are configured; no business repository payload is installed."
     },
     {
-      "prompt": "Update this repository from an older locked handoff version.",
-      "expected_behavior": "Verify all managed hashes before applying update mode and preserve project-owned content.",
-      "expected_result": "Managed protocol files and lock advance to the current version while task state and unrelated files remain unchanged."
+      "prompt": "Create a baton for this explicitly described continuing task.",
+      "expected_behavior": "Read the global template only after confirming the explicit baton request and create current.md on a task branch.",
+      "expected_result": "The repository gains only task data with the established frontmatter and seven sections."
     },
     {
-      "prompt": "Adopt this complete handoff installation that predates install locks.",
-      "expected_behavior": "Verify the legacy installation is complete, then run adopt-existing without upgrading files.",
-      "expected_result": "Create .agents/handoff.lock for the existing bytes and make no other repository changes."
+      "prompt": "Disable the Handoff startup entry for Claude only.",
+      "expected_behavior": "Remove only the managed user-level entry block for Claude, preserving other rules, configured clients and repository task data.",
+      "expected_result": "Claude automatic activation is disabled; explicit skill invocation remains available and no repository files change."
     }
   ],
   "negative": [
     {
-      "prompt": "Continue the current coding task.",
-      "expected_behavior": "Do not invoke handoff-installer or any installation script.",
-      "reason": "Ordinary task continuation belongs to the repository runtime skill, not the installer."
+      "prompt": "Fix the failing test.",
+      "expected_behavior": "When no current baton exists and no handoff is requested, do the ordinary work without creating .agents files or running setup or migration.",
+      "reason": "Implicit availability provides operating rules, not permission to create task state."
     },
     {
-      "prompt": "Install handoff in my home directory even though it is not a git repository.",
-      "expected_behavior": "Refuse without creating files.",
-      "reason": "The protocol requires a specific git repository and rejects broad or non-git targets."
+      "prompt": "Continue this task.",
+      "expected_behavior": "If the baton owner is another agent and no handoff authorization exists, stop before migration or baton writes and ask for a decision.",
+      "reason": "Owner remains a handoff coordination signal."
     },
     {
-      "prompt": "Force update handoff and overwrite my locally modified managed files.",
-      "expected_behavior": "Stop and report the managed-file conflict without overwriting it.",
-      "reason": "Local modifications require human reconciliation and are never silently destroyed."
+      "prompt": "Migrate this repository even though its old handoff files were edited locally.",
+      "expected_behavior": "Report blocked and preserve every file.",
+      "reason": "The migrator only removes files with old-protocol proof."
+    },
+    {
+      "prompt": "Continue the task with an old .agents/handoff.transaction present.",
+      "expected_behavior": "Report blocked and do not invoke the old installer or modify the baton.",
+      "reason": "Only the original version may recover its transaction."
     }
   ]
 }

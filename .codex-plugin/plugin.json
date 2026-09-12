@@ -1,7 +1,7 @@
 {
   "name": "agent-handoff-skill",
-  "version": "0.2.0",
-  "description": "Install and update a repository-local handoff protocol for auditable multi-agent task relay.",
+  "version": "0.3.0",
+  "description": "A shared global runtime for auditable multi-agent task handoffs with repository-local task data.",
   "author": {
     "name": "Snowson",
     "email": "snowsonz@outlook.com",
@@ -18,8 +18,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Agent Handoff",
-    "shortDescription": "Install an auditable repository handoff protocol",
-    "longDescription": "Install, inspect, update, or adopt a repository-local handoff protocol that keeps task state and audit history in git.",
+    "shortDescription": "Manage auditable task handoffs",
+    "longDescription": "Enable user-level handoff entry points, continue tracked tasks, and safely migrate old repository deployments to a shared global runtime.",
     "developerName": "Snowson",
     "category": "Productivity",
     "capabilities": [
@@ -29,9 +29,9 @@
     "privacyPolicyURL": "https://github.com/SnowsonZ/agent-handoff-skill/blob/main/docs/publish/PRIVACY.md",
     "termsOfServiceURL": "https://github.com/SnowsonZ/agent-handoff-skill/blob/main/docs/publish/TERMS.md",
     "defaultPrompt": [
-      "Install handoff in this git repository.",
-      "Check the handoff installation status.",
-      "Update the handoff protocol in this repository."
+      "Continue the current handoff task.",
+      "Enable the global Handoff entry for my CLI.",
+      "Show the current handoff task status."
     ],
     "brandColor": "#2563EB",
     "composerIcon": "./assets/logo.svg",

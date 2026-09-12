@@ -1,6 +1,17 @@
 # 发布状态
 
-更新时间：2026-09-10
+更新时间：2026-09-11
+
+`0.2.0` 已发布：GitHub tag 为 `v0.2.0`（公开仓提交 `36a8b64`），Actions `34551454086` 已成功，
+包括「Confirm the exact version is public」步骤——发布被 ClawHub 受理且轮询窗口内已转公开。
+本次发布把账本脚本收进运行时 skill 目录（`tools/ledger.sh` →
+`.agents/skills/handoff/ledger.sh`），`update` 对 0.1.x 旧安装自动迁移；设计见
+`docs/superpowers/specs/2026-09-11-ledger-into-skill-dir.md`。本机当时无法直连 clawhub.ai
+（TLS 握手被断），转公开以 workflow 确认步骤为准。
+
+**审计结论暂缺，发布后一切扫描结论在终态前都算暂定**：需待 VirusTotal 与 SkillSpector 回写、
+且 `clawscan.checkedAt` 不早于两者（终态判定命令见 [CLAWHUB.md](CLAWHUB.md)）。此前同一份产物
+曾出现 `benign`/`suspicious` 波动，单次初审不构成定论。
 
 `0.1.12` 已发布：GitHub tag 为 `v0.1.12`（`031f7bb`），Actions `34438473089` 已成功；ClawHub 版本
 API 返回 HTTP 200，12 个源文件路径与 SHA-256 均和发布源一致。本次发布修复了 `0.1.11` 遗留的已知

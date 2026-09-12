@@ -1,14 +1,13 @@
----
-name: handoff
-description: Use when starting work in this repository, when preparing to end a work session, or when asked to hand off a task. Covers the task baton, restatement, compression and history-reading boundaries, and git commit trailers.
----
-
 # 任务接力规程
 
-> 本文件在安装包内是待安装的运行时载荷，不是安装器的指令。经用户确认安装到目标仓库的
-> `.agents/skills/handoff/` 后，才约束该仓库的日常任务接力。
+> 本文件是全局 `handoff-installer` Skill 的运行时规程。任务棒和归档留在目标 git 仓库，规程、
+> 模板和账本脚本从已安装的全局 Skill 读取，不复制到仓库。
 
-当前任务状态以 `.agents/tasks/current.md`（任务棒）为准。历史用于追溯，不是另一份当前状态。
+每次开工先读取本规程；本轮已读取且文件未变化时无需重复读取。随后检查当前任务棒和工作区状态，
+按下述状态分支处理；没有活动任务时按当前请求正常工作。
+
+当前任务状态以 `.agents/tasks/current.md`（任务棒）为准。历史用于追溯，不是另一份当前状态。普通
+请求在没有任务棒时正常处理，不自动建棒；没有旧部署时不创建 `.agents/` 或迁移记录。
 
 ## 读取边界
 
@@ -17,16 +16,31 @@ description: Use when starting work in this repository, when preparing to end a 
   只是追溯入口，不是必读清单；不得自动展开、递归跟读或把压缩前全文重新灌入上下文。
 - 摘要有缺口时说明具体缺口，不自动补读。排查、审计、核实需求本身，以及你认为“需要更多背景”，
   都不等于读取压缩前内容的授权。得到读取要求后，只读取用户指定范围；已有明确要求不重复询问。
-- 历史判断不能直接覆盖当前有效结论。`.agents/skills/handoff/ledger.sh` 的摘要查询、提交号及
+- 历史判断不能直接覆盖当前有效结论。`<skill-dir>/scripts/ledger.sh` 的摘要查询、提交号及
   对象存在性检查
   不读取历史原文，可以用于查账和验证来源。
 
+明确只读查账、审阅或解释规程时，不进入下面的接棒流程，不需要接手 owner；只运行必要的
+`python3 "<skill-dir>/scripts/migrate.py" status` 或全局只读账本，不迁移、不写任务棒。全局入口配置请求
+也不接棒，按 SKILL.md 的配置模式处理。
+
+## 开工检查旧部署
+
+旧部署清理独立于任务创建。全局入口发现旧锁、清理事务或旧部署痕迹时，即使没有
+`current.md`，也运行 `python3 "<skill-dir>/scripts/migrate.py" status`。
+明确只读请求及全局配置请求沿用上面的边界；有任务棒时先按「接棒」检查状态和接手授权。
+没有任务棒且当前请求允许工作区写入时，`legacy` 或新清理事务的 `interrupted` 自动执行
+`python3 "<skill-dir>/scripts/migrate.py" migrate`，确认 `clean` 后继续原请求，不建棒、不接手 owner。
+`clean` 直接继续；`blocked` 或命令失败则报告具体问题，停止清理，不猜测旧规程。
+无锁旧部署只报告归属问题，不删除。旧安装事务必须由原版本恢复。
+迁移改动留在工作区供正常审阅提交，不自动提交，也不读取任务历史。
+
 ## 接棒
 
-先读任务棒和工作区状态。在任何改写前，用 `git cat-file -e HEAD:.agents/tasks/current.md` 和
-`git diff --quiet HEAD -- .agents/tasks/current.md` 的状态码确认本次读入的正文是否已提交；都成功时
-记住完整 HEAD SHA、原路径和本次输入，作为本轮可压缩基线。**只做无正文输出的检查**，不显示任务棒
-的正文 diff，也不为补证执行 `git show` 读取旧版本。已有改动或无法确认时，保留不确定内容。
+先读任务棒和工作区状态，先按下表处理任务状态，再检查 `owner` 是否属于其他 agent 以及当前会话是否已有明确接手授权；若 owner
+属于其他 agent 而未获授权，立即停止并等待用户决定，不能迁移或改写任务棒。确认可接手后，在第一段任务
+回复中，用自己的话复述 Intent 与 Next 第一条；理解有出入先确认，不动手。明确只读查账或审阅时，只运行
+`python3 <skill-dir>/scripts/migrate.py status`，不得迁移或改写任务棒。
 
 **在改 `ack`、`owner` 之前**处理下列情况：
 
@@ -43,15 +57,26 @@ description: Use when starting work in this repository, when preparing to end a 
 Next 没有待办时写 `- (none)`，该行算空。多个异常同时存在时一起说明，不能因为其中一项满足就
 忽略其他问题。`blocked` 先检查所记阻塞是否解除，未解除就说明阻塞，不假装已开始执行。
 
+状态允许接棒后，在任何任务棒改写前运行 `python3 "<skill-dir>/scripts/migrate.py" status`。
+`clean` 表示没有旧部署，不创建文件；`legacy` 或新清理事务的 `interrupted` 则运行
+`python3 "<skill-dir>/scripts/migrate.py" migrate`，确认返回 `clean` 后继续。
+`blocked` 或命令失败时停止写入任务棒。旧 `.agents/handoff.transaction` 会得到 `blocked`，须先用原版本
+恢复；不得自动调用旧安装器。清理产生的已有工作区改动不混入业务提交。
+
+用 `git cat-file -e HEAD:.agents/tasks/current.md` 和 `git diff --quiet HEAD -- .agents/tasks/current.md`
+的状态码确认本次正文是否已提交；都成功时记住完整 HEAD SHA、原路径和本次输入，作为压缩基线。
+只做无正文输出的检查，不显示任务棒正文 diff 或回读旧版本。已有改动或无法确认时保留不确定内容。
+
 确认可以接手后：
 
-1. 在第一段任务回复中，用自己的话复述 Intent 与 Next 第一条。理解有出入先确认，不动手。
-2. 核对 Next 第一条前置条件；不成立就记录到 Open questions 并告知用户，不执行依赖它的步骤。
+1. 核对 Next 第一条前置条件；不成立就记录到 Open questions 并告知用户，不执行依赖它的步骤。
+2. 任务棒只在任务分支上；没有本任务分支时先创建，归档后才能合并回主干。
 3. 将本轮复述压成一到两句，**覆盖** frontmatter 的 `ack`，并把 `owner` 写成自己的 CLI 标识。
 4. 开工。`ack` 记录最近一次接棒理解，非空不代表本轮已接棒；即使旧 ack 看起来仍正确也必须重写。
 
 你的 CLI 标识由自身身份决定（如 `claude-code` / `codex` / `zcode` / `kimicode`），不能从
-`owner`、`ack`、Decisions 或 git 历史推断或照抄。`owner` 记录持棒人，不是身份指派或并发锁。
+`owner`、`ack`、Decisions 或 git 历史推断或照抄。准确归属若与更高优先级规则冲突，提交前说明冲突，
+不自行声明规则例外。`owner` 记录持棒人，不是身份指派或并发锁。
 
 ## 交棒
 
@@ -75,7 +100,7 @@ Hop: <hop>
 Agent: <agent>"
 ```
 
-只暂存本轮负责的文件。用 `sh .agents/skills/handoff/ledger.sh <task>` 查提交摘要，核对 hop 连续且无重复；
+只暂存本轮负责的文件。在目标仓库根目录用 `sh "<skill-dir>/scripts/ledger.sh" <task>` 查提交摘要，核对 hop 连续且无重复；
 这不会自动加载历史任务正文。
 
 ## 压缩
@@ -126,7 +151,7 @@ git commit -m "<英文单行总结>" -m "Task-Id: <task>
 Hop: <hop>
 Agent: <agent>" &&
 git show HEAD:.agents/tasks/archive/<task>.md &&
-sh .agents/skills/handoff/ledger.sh <task>
+sh "<skill-dir>/scripts/ledger.sh" <task>
 ```
 
 命令用 `&&` 串接，存在性检查、移动或提交任一步失败都不再继续后续步骤。
@@ -142,8 +167,9 @@ sh .agents/skills/handoff/ledger.sh <task>
 例如 `git status --porcelain`、`git diff --stat`、`git log --oneline -20`、`git stash list`。
 多件无关工作且当前请求未选定时，让用户选一件，不合并成一个 Intent。Constraints 取自项目规则。
 
-先创建任务分支（已有本任务分支则沿用），再从 `.agents/tasks/TEMPLATE.md` 建任务棒；主干上不放
-`current.md`。建棒格式：
+先创建任务分支（已有本任务分支则沿用），再读取全局 `assets/TEMPLATE.md` 并写入
+`.agents/tasks/current.md`；主干上不放 `current.md`。只有用户明确要求建棒或明确要求登记延续性工作时
+才可创建该文件。建棒格式：
 
 - task 为 `t-YYYY-MM-DD-<小写英文短名>`，全仓库唯一、创建后不变。
 - 尚有待确认的意图或禁区时使用 `status: draft`、`hop: 0`、空 owner/ack，在 Open questions 写清

@@ -7,7 +7,7 @@
 ## 发布一个新版本
 
 ```sh
-V=0.1.5
+V=0.3.0
 ```
 
 1. 改版本号：`.agents/skills/handoff-installer/VERSION` 与
@@ -21,12 +21,17 @@ V=0.1.5
 ```sh
 tmp=$(mktemp -d)
 git clone ssh://git@ssh.github.com:443/SnowsonZ/agent-handoff-skill.git "$tmp/repo"
+rm -rf "$tmp/repo/skills/handoff"
 rsync -a --delete plugins/agent-handoff/skills/handoff-installer/ "$tmp/repo/skills/handoff-installer/"
+mkdir -p "$tmp/repo/tools"
+cp tools/upgrade-skill.py "$tmp/repo/tools/upgrade-skill.py"
 cp plugins/agent-handoff/.codex-plugin/plugin.json "$tmp/repo/.codex-plugin/plugin.json"
 cp plugins/agent-handoff/assets/logo.svg "$tmp/repo/assets/logo.svg"
 mkdir -p "$tmp/repo/.github/workflows"
 cp plugins/agent-handoff/.github/workflows/publish-clawhub.yml "$tmp/repo/.github/workflows/"
 cp docs/publish/PUBLIC_README.md "$tmp/repo/README.md"
+mkdir -p "$tmp/repo/docs"
+cp docs/upgrade.md "$tmp/repo/docs/upgrade.md"
 cp docs/publish/*.md docs/publish/TEST_CASES.json "$tmp/repo/docs/publish/"
 git -C "$tmp/repo" status --short          # 只应包含上述公开路径
 git -C "$tmp/repo" add -A
@@ -43,6 +48,9 @@ git -C "$tmp/repo" push origin main "v$V"
 > - 改动 `.github/workflows/` 时，走 HTTPS 推送需要凭据带 `workflow` scope，否则 GitHub 拒收；
 >   当前 `gh` token 只有 `repo, gist, read:org, admin:public_key`，**没有** `workflow`。走上面的
 >   SSH-over-443 不受此限制。只改 skill 与文档、不动 workflow 文件时，HTTPS 也可以。
+
+`tools/upgrade-skill.py` 是给已安装用户升级全局 Skill 的开发工具，公开同步时必须随 `tools/` 复制；
+它不属于运行时协议载荷，也不计入 `skills/handoff-installer/` 的 bundle 文件数。
 
 4. 去 Actions 看结果：<https://github.com/SnowsonZ/agent-handoff-skill/actions>
 
@@ -102,7 +110,7 @@ comm -23 /tmp/uploaded.txt /tmp/published.txt   # 输出为空才算内容完整
 
 ```sh
 npx --yes clawhub@latest skill publish ./plugins/agent-handoff/skills/handoff-installer \
-  --slug agent-handoff-skill --name 'Handoff Installer' --version "$V" \
+  --slug agent-handoff-skill --name 'Handoff' --version "$V" \
   --changelog '<一句话变更说明>' --dry-run --json
 ```
 

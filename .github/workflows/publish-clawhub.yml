@@ -18,7 +18,7 @@ concurrency:
 env:
   SKILL_PATH: skills/handoff-installer
   SKILL_SLUG: agent-handoff-skill
-  SKILL_NAME: Handoff Installer
+  SKILL_NAME: Handoff
   MANIFEST_PATH: .codex-plugin/plugin.json
   # ClawHub silently drops hidden paths and symlinks from a published bundle.
   # A wrong file count is the only signal that the payload was truncated.

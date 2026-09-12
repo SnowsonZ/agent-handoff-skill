@@ -1,54 +1,47 @@
 # Agent Handoff
 
-Agent Handoff 把可审计的多 agent 任务接力协议安装到 git 仓库中。任务目标、已完成工作、下一步、决策和禁区保存在版本控制内的任务棒中，不依赖任何单一客户端的会话历史。
+Agent Handoff 是一套可审计的全局任务接力 Skill。任务棒留在业务仓库，规程、模板和只读账本脚本由
+全局 `handoff-installer` 统一提供，显示名为 Handoff。
 
-## 包含内容
+## 安装并启用
 
-- `handoff-installer`：显式安装、检查、更新或采用仓库级 handoff 协议
-- 四模式安装状态机：`status`、`install`、`update`、`adopt-existing`
-- 安装锁、本地修改保护和中断恢复
-- 仓库运行时 handoff Skill、任务棒模板和只读 git 账本工具
-
-## 安装
-
-从支持 Agent Skills 的客户端安装：
+每台机器安装一次，再为所使用的 CLI 明确启用用户级短入口：
 
 ```bash
-npx skills add SnowsonZ/agent-handoff-skill --skill handoff-installer
+npx skills add SnowsonZ/agent-handoff-skill --skill handoff-installer --global
+python3 "<skill-dir>/scripts/setup.py" enable --agents codex claude
 ```
 
-安装 Skill 后显式调用：
+`<skill-dir>` 为安装目录，通常是 `~/.agents/skills/handoff-installer`。可选 CLI 为 codex、claude、zcode、
+kimi；用空格分隔。之后只更新全局 Skill，无需向每个业务仓库同步协议。协作者也需在自己的机器启用。
 
-```text
-Use the $handoff-installer skill to install handoff in this git repository.
+已有任务棒或用户明确要求接力时才加载规程。无任务的普通请求不创建 `.agents/`；明确建棒时，只从全局
+模板生成仓库内的 `.agents/tasks/current.md`。任务与归档仍按原格式进入 Git。
+
+## 旧仓库过渡
+
+首次实际接棒时，在修改任务状态之前，agent 自动调用：
+
+```bash
+python3 "<skill-dir>/scripts/migrate.py" migrate
 ```
 
-普通 `Continue.`、继续编码或交棒请求不会触发安装器。
+只读查账或审阅则调用 status，不执行迁移。旧部署必须有安装锁证明；本地修改、无锁或旧安装中断会
+停止清理。新清理事务可以恢复，完成后移除旧锁与事务，不留下新的协议部署状态。
 
-## 市场页面
+清理仅涉及旧协议、模板、账本、runtime Skill 和 handoff 标记块，保留任务、归档、业务 CLAUDE 导入及
+其他规则。清理改动留在工作区供审阅，不自动提交。旧安装命令已退役，不会悄悄改写全局配置。
 
-- [skills.sh](https://www.skills.sh/snowsonz/agent-handoff-skill/handoff-installer)
-- [ClawHub](https://clawhub.ai/snowsonz/skills/agent-handoff-skill)
-- [GitHub](https://github.com/SnowsonZ/agent-handoff-skill)
+## 日常操作
 
-## 安全边界
+在目标仓库根目录查账：
 
-- 只接受具体 git 仓库作为目标
-- 当前版本重复安装为 no-op
-- 旧版更新和无锁旧版采用必须显式请求
-- 受管文件有本地修改时拒绝覆盖
-- 不包含遥测、远程服务、认证或网络上报
+```bash
+sh "<skill-dir>/scripts/ledger.sh" <task-id>
+```
 
-安装前请审查 Skill 和脚本，并为重要仓库保留备份。
+全局入口状态用 setup.py status 检查；明确请求 disable 时，仅移除所选客户端的入口块。任务数据不会
+被删除。历史引用不是读取授权，只有用户明确要求时才读取指定历史正文。
 
-## 文档
-
-- [隐私政策](docs/publish/PRIVACY.md)
-- [服务条款](docs/publish/TERMS.md)
-- [支持](docs/publish/SUPPORT.md)
-- [审核测试用例](docs/publish/TEST_CASES.json)
-- [发布状态](docs/publish/STATUS.md)
-
-## 许可证
-
-Skill 和公开发布包使用 MIT-0 许可证，详见 `LICENSE`。
+Skill 自身没有遥测或远程服务。下载和更新由安装渠道处理；详情见 [隐私政策](docs/publish/PRIVACY.md)、
+[升级说明](docs/upgrade.md) 和 [发布说明](docs/publish/RELEASE_NOTES.md)。

@@ -1,3 +1,21 @@
+# v0.3.0（待发布）
+
+`handoff-installer` 保持历史稳定名称，显示名 Handoff，版本、slug 与 plugin 标识保持
+`0.3.0` / `agent-handoff-skill`。它现在是可隐式调用的全局日常接力 Skill：已有任务或明确接力请求会加载
+规程，普通请求在无任务时不会建棒、迁移或写 `.agents/`。
+
+完整规程、任务棒模板和只读账本只存在于全局 Skill。业务仓库只保存 `.agents/tasks/` 的任务与归档数据；
+账本从目标仓库根目录通过 `sh <skill-dir>/scripts/ledger.sh <task-id>` 查询。每台机器需要安装 Skill 并由
+用户明确运行一次 `setup.py enable --agents ...`；以后升级全局 Skill 即同时更新所有已启用仓库的规程。
+
+旧仓库首次实际接棒前运行新的 `migrate.py migrate`。迁移只删除有证明的旧协议、模板、runtime Skill、
+ledger 与 AGENTS 标记块，保留任务、归档和业务 CLAUDE 导入，并用
+`.agents/handoff-migration.json` 记录一次清理事务。明确只读查账或审阅只运行 `status`。发现旧
+`.agents/handoff.transaction` 时停止，必须由原版本恢复，迁移器不会调用旧安装器。
+
+`tools/upgrade-skill.py` 仍可选：默认只更新全局 Skill；显式 `--repo` 只清理该仓库旧载荷，不安装任何
+payload，也不扫描其他仓库。
+
 # v0.2.0
 
 账本脚本随运行时 skill 分发：安装位置从业务仓库根目录 `tools/ledger.sh` 改为

@@ -29,7 +29,7 @@ updated: YYYY-MM-DDTHH:MM:SS+08:00
 ## Decisions
 
 - **仍有效的选择** —— 理由与重要排除项。（YYYY-MM-DD, agent 标识）
-- 历史内容允许按 Skill 规程摘要化；来源仅在用户要求读取时展开，不能代替当前必需信息。
+- 历史内容允许按接力协议摘要化；来源仅在用户要求读取时展开，不能代替当前必需信息。
 
 ## Open questions
 
