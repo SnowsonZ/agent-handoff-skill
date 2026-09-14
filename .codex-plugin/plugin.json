@@ -1,7 +1,7 @@
 {
   "name": "agent-handoff-skill",
-  "version": "0.3.0",
-  "description": "A shared global runtime for auditable multi-agent task handoffs with repository-local task data.",
+  "version": "0.4.0",
+  "description": "Save task context and compress work history so a new session or agent can continue.",
   "author": {
     "name": "Snowson",
     "email": "snowsonz@outlook.com",
@@ -18,8 +18,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Agent Handoff",
-    "shortDescription": "Manage auditable task handoffs",
-    "longDescription": "Enable user-level handoff entry points, continue tracked tasks, and safely migrate old repository deployments to a shared global runtime.",
+    "shortDescription": "Save context and resume tasks",
+    "longDescription": "Keep current goals, progress, next steps and decisions in local task records, with compact work history and on-demand maintenance.",
     "developerName": "Snowson",
     "category": "Productivity",
     "capabilities": [

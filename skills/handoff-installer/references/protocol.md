@@ -1,37 +1,47 @@
-# 全局运行时维护参考
+# Handoff 维护
 
-`handoff-installer` 是日常运行时 Skill，不再安装仓库级运行时载荷。稳定名称、显示名和版本保持
-`handoff-installer` / Handoff / `0.3.0`。
+日常接力见 `../PROTOCOL.md`；本页只用于安装入口、升级、旧部署清理和旧账本查询。
+这些维护操作不控制任务能否继续，任务数据不需要迁移。入口配置需要 Python 3，
+旧部署清理还需要 Git，旧账本查询需要 Git 与 sh；日常记录不要求安装这些维护工具。
 
-## 单一来源
+## 用户级入口
 
-- `PROTOCOL.md`：所有仓库共享的接棒、交棒、归档、压缩和历史读取规程。
-- `assets/TEMPLATE.md`：仅在用户明确建棒时读取，写入目标仓库的 `.agents/tasks/current.md`。
-- `scripts/ledger.sh`：只读账本；在目标仓库根目录执行
-  `sh <skill-dir>/scripts/ledger.sh <task-id>`。
-- `scripts/setup.py`：用户级 CLI 短入口的 `enable`、`status`、`disable`。
-- `scripts/migrate.py`：旧仓库状态检查和一次性、可恢复的旧协议清理。
+安装全局 Skill 后，按用户指定的客户端执行：
 
-任务棒、归档与业务规则归业务仓库所有；全局 Skill 绝不替代它们。任务棒不记录本机安装目录，文档中的
-`<skill-dir>` 是运行时占位符。
+```sh
+python3 "<skill-dir>/scripts/setup.py" enable --agents codex claude
+python3 "<skill-dir>/scripts/setup.py" status
+python3 "<skill-dir>/scripts/setup.py" disable --agents claude
+```
 
-## 入口与升级
+`enable`、`disable` 需要对应请求；`status` 只读。入口指向全局规程，不向业务仓库分发载荷。
+更新 Skill 后所有已启用仓库使用新规程；从旧版升级需重新 enable 已启用客户端，以替换自动迁移入口。
+维护请求不创建或接手任务。跨客户端验证见 [compatibility.md](compatibility.md)。
 
-每台机器先安装全局 Skill，再由用户明确请求运行一次 `setup.py enable --agents ...`。之后升级全局
-Skill 即同时更新所有仓库使用的规程；升级本身不改业务仓库。`setup.py status` 只读，`disable` 只移除
-对应入口。
+## 旧部署清理
 
-`tools/upgrade-skill.py` 仍是可选协调器：默认只安装或升级全局 Skill；显式 `--repo` 仅调用新迁移器
-清理该旧仓库，不安装任何仓库载荷。
+用户要求清理或迁移指定旧仓库时，先检查：
 
-旧部署在下次开工时检查，不依赖任务棒存在；无任务时按 PROTOCOL.md 的开工分支迁移，不建棒。
+```sh
+python3 "<skill-dir>/scripts/migrate.py" status [repo-root]
+```
 
-## 迁移边界
+返回 `clean` 时无需操作；`legacy` 或新清理事务的 `interrupted` 可执行 `migrate [repo-root]`，
+完成后确认 `clean`。只读请求只检查；`blocked` 或失败时报告具体原因并停止清理。
+旧 `.agents/handoff.transaction` 必须由原版本恢复，不能自动调用旧安装器。
 
-`migrate.py status [repo-root]` 默认把当前工作目录解析为 git 根目录，输出 JSON，`state` 只能是
-`clean`、`legacy`、`blocked` 或 `interrupted`。`migrate [repo-root]` 同样默认当前 git 根目录。
+迁移只清理旧锁证明属于协议的文件及标记块，保留任务、归档、业务 CLAUDE 导入、其他业务规则和
+Git 历史。无锁、本地修改或不明归属内容不删除。清理改动留给项目正常审阅提交。
 
-迁移仅删除旧锁证明的旧协议、模板、旧 runtime Skill、ledger 与 `AGENTS.md` 的 handoff 标记块；
-保留 `.agents/tasks/`、归档、业务 `CLAUDE.md` 导入、所有非 handoff 内容和 git 历史。一次清理写入新的
-`.agents/handoff-migration.json` 事务记录。发现旧 `.agents/handoff.transaction` 时报告
-`blocked` 并停止；必须使用原版本恢复，不能自动执行旧 `install.sh`。
+可选开发协调器 `tools/upgrade-skill.py` 默认只更新全局 Skill，显式 `--repo` 才清理所选旧仓库。
+不扫描其他仓库。`--copy-to` 可同步技能留存副本。
+
+## 旧账本
+
+新记录不使用 hop 或 commit trailer。需要查询旧任务账本时，在相应 Git 仓库执行：
+
+```sh
+sh "<skill-dir>/scripts/ledger.sh" <task-id>
+```
+
+该命令只读提交摘要，不自动读取历史正文。它是兼容查询工具，不是交接验收步骤。

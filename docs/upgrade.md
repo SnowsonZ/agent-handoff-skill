@@ -1,61 +1,33 @@
-# 升级到全局运行时（v0.3.0）
+# 升级到精简接力协议
 
-v0.3.0 保留 Skill 名称 `handoff-installer`、显示名 Handoff 和版本号，但取消向业务仓库部署运行时载荷。
-每台机器安装全局 Skill 并明确启用一次用户级入口；之后升级 Skill 即更新所有仓库所用规程。
+本次取消日常接力中的 owner、ack、hop、强制提交和分支要求；当前状态与工作历史分开保存。
+安装名称仍为 `handoff-installer`。任务数据无需批量迁移，旧七小节记录可以直接接手，正常更新时整理。
+旧 Git trailer 仍可用兼容账本查询，新记录不再生成它们。
 
-## 安装与启用
+## 更新技能与入口
 
-先按你的客户端渠道安装或更新 `handoff-installer`，再明确请求：
+安装新版 Skill 后，对已经启用的客户端重新执行 enable，将自动检查和清理旧部署的旧入口替换掉：
 
-```bash
+```sh
 python3 "<skill-dir>/scripts/setup.py" enable --agents codex claude
+python3 "<skill-dir>/scripts/setup.py" status --agents codex claude
 ```
 
-可用 agent 名称与实际写入位置由脚本输出。`status` 只读；`disable` 只移除指定入口。普通编码、普通接棒和
-`Continue.` 不运行 setup，也不会建立任务棒。
+可选客户端为 codex、claude、zcode、kimi。只更新实际使用的入口，不启用未请求的客户端。
+之后常规规程更新不需要改每个工作目录。已打开的会话可能仍带旧规则，新会话读取新入口。
 
-更新已启用 Skill 时，不需要逐仓库更新；新会话会读取新的全局规程。未安装或未启用的机器不能获得该
-运行时保证，这是 v0.3.0 取代 clone 后零配置的明确边界。
+本地开发可用 `python3 tools/upgrade-skill.py --copy-to /absolute/skill-copies` 更新全局安装及留存副本。
+该命令不修改业务仓库，也不重写入口；上面的 enable 负责入口更新。
 
-## 旧仓库迁移
+## 按需清理旧部署
 
-首次实际接棒前，agent 在目标仓库根目录运行：
+日常接手不运行迁移。需要清理指定旧仓库时，按全局 Skill 的 `references/protocol.md` 使用
+`migrate.py status [repo-root]`，确认归属后执行 `migrate [repo-root]`；或显式给协调器传 `--repo`。
 
-```bash
-python3 "<skill-dir>/scripts/migrate.py" migrate
-```
+清理只删除旧锁证明的协议文件和标记块，保留任务、历史、归档及业务规则。没有归属证明、本地修改
+或旧安装事务时停止清理并报告；旧安装事务须由原版本恢复。清理失败不禁止正常记录当前任务状态。
 
-如果只查账或审阅，运行：
+## 退出
 
-```bash
-python3 "<skill-dir>/scripts/migrate.py" status
-```
-
-两个命令都可显式传入 `[repo-root]`；省略时解析当前工作目录所属的 git 根目录。`status` 输出 JSON：
-
-| state | 含义与后续 |
-| --- | --- |
-| `clean` | 不需要清理；不会创建文件。 |
-| `legacy` | 可在实际接棒时运行 `migrate`。 |
-| `blocked` | 旧载荷缺少证明或有本地改动；停止，不改任务棒。 |
-| `interrupted` | 新清理事务尚未完成，运行 migrate 恢复；旧安装事务会报告 blocked，须用原版本恢复。 |
-
-迁移以 `.agents/handoff-migration.json` 记录一次清理事务。它只删除旧锁证明的旧协议、模板、旧
-runtime Skill、ledger 和 `AGENTS.md` handoff 标记块；任务棒、归档、git 历史、业务 `CLAUDE.md` 导入及
-其他业务内容保留。迁移器绝不自动调用旧 `install.sh`。
-
-## 可选协调器
-
-开发仓库的协调器仍可升级全局 Skill：
-
-```bash
-python3 tools/upgrade-skill.py
-```
-
-只有显式指定业务仓库时才处理旧布局：
-
-```bash
-python3 tools/upgrade-skill.py --repo /absolute/repo-a --repo /absolute/repo-b
-```
-
-`--repo` 只触发迁移器清理，不能安装协议、模板或账本到这些仓库。协调器也不会扫描其他业务仓库。
+`setup.py disable --agents <客户端>` 只移除所选用户级入口，不删除任务数据。
+规程不会自动读取其他会话日志、全部归档或压缩前的历史原文。

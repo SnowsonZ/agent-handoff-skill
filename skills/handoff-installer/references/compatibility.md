@@ -1,16 +1,14 @@
-# 发现与触发兼容性
+# 跨客户端验证
 
-`handoff-installer` 保持历史稳定名称，显示名为 Handoff，允许隐式调用。隐式调用只让 agent 获得
-判断当前仓库是否已有任务和是否需要接力的规程；它不授权创建任务棒、启用用户入口或修改旧仓库。
+`handoff-installer` 保持稳定名称，显示名 Handoff，允许隐式调用。不同客户端共同遵守 `PROTOCOL.md`。
 
-## 验证矩阵
+验证实际结果：
 
-每个目标客户端分别验证：
+1. 无活动任务的普通请求不创建任务数据，不运行 setup 或迁移。
+2. 接手旧格式或新格式任务，完成指定下一步，保留后续工作、有效决策和约束；不要求 owner 授权。
+3. 主干上或有未提交改动时也能保存交接，Git 操作遵循用户及项目要求。
+4. 连续压缩后，摘要仍保留成果、验证、关键理由和失败教训，副本可定位；默认不读取压缩前原文。
+5. 只读请求不写任务数据；维护请求只处理指定入口或仓库，不接手业务任务。
 
-1. 普通请求且不存在 `current.md`：不创建 `.agents/`、任务棒或迁移记录。
-2. 已有任务或明确接棒请求：先读取任务、检查 owner 与授权、复述理解，再按迁移门槛继续。
-3. 明确只读查账或审阅：只运行 `migrate.py status`，不执行迁移和任务棒写入。
-4. 明确 `setup` / `enable` / `disable`：只配置相应用户级入口；普通接棒不触发 setup。
-
-支持 invocation policy 的客户端应确认 `allow_implicit_invocation: true`。跨客户端共同边界由 Skill
-description、`PROTOCOL.md` 的建棒条件及脚本状态机保证。
+`tools/verify/check-protocol-loading.py` 检查真实客户端入口与接力；
+`tools/verify/check-runtime-behavior.py` 检查任务更新、压缩和归档。离线验收器自测不冒充模型行为验证。

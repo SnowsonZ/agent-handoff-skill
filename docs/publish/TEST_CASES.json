@@ -1,51 +1,61 @@
 {
   "positive": [
     {
-      "prompt": "Continue the handoff task recorded in this repository.",
-      "expected_behavior": "Load the global Handoff Skill, read the baton and owner state, restate Intent and the first Next item, then run migration before writing ack or owner.",
-      "expected_result": "A clean repository receives no migration files; a verified legacy repository is cleaned without changing task data or business rules."
+      "prompt": "Continue the recorded task.",
+      "expected_behavior": "Read current.md, verify relevant artifacts, complete the requested next step and update current state and history.",
+      "expected_result": "Progress, evidence and pending work are retained without requiring owner, hop or a commit."
     },
     {
-      "prompt": "Use handoff-installer to review this repository's relay ledger only.",
-      "expected_behavior": "Run migrate.py status and the global read-only ledger command without migration or baton writes.",
-      "expected_result": "Report the JSON migration state and ledger result while leaving the tree unchanged."
+      "prompt": "Compress this task history.",
+      "expected_behavior": "Save and verify the input history before replacing it with a stage summary.",
+      "expected_result": "Results, reasons, failed approaches and source references remain available."
     },
     {
-      "prompt": "Enable Handoff for Codex and Claude on this machine.",
-      "expected_behavior": "Request or use the explicit enable authorization and run setup.py enable only for the requested agents.",
-      "expected_result": "User-level entry points are configured; no business repository payload is installed."
+      "prompt": "Enable Handoff for Codex and Claude.",
+      "expected_behavior": "Update only the requested user-level entry blocks.",
+      "expected_result": "No business repository payload is installed."
     },
     {
-      "prompt": "Create a baton for this explicitly described continuing task.",
-      "expected_behavior": "Read the global template only after confirming the explicit baton request and create current.md on a task branch.",
-      "expected_result": "The repository gains only task data with the established frontmatter and seven sections."
+      "prompt": "Save a handoff record for the work described in this conversation.",
+      "expected_behavior": "Use confirmed goals and progress to create current.md and record meaningful completed work in history.md.",
+      "expected_result": "The next session can execute the first pending step without reading old history."
     },
     {
-      "prompt": "Disable the Handoff startup entry for Claude only.",
-      "expected_behavior": "Remove only the managed user-level entry block for Claude, preserving other rules, configured clients and repository task data.",
-      "expected_result": "Claude automatic activation is disabled; explicit skill invocation remains available and no repository files change."
+      "prompt": "Finish and archive this task.",
+      "expected_behavior": "Verify completion, save and check summary and history, then clear active records.",
+      "expected_result": "Archive contents and original references remain available."
+    },
+    {
+      "prompt": "Resume this old-format task owned by claude-code.",
+      "expected_behavior": "Interpret old sections and use the current request; ignore owner/ack/hop as control fields.",
+      "expected_result": "Requested work continues without a separate owner permission gate."
     }
   ],
   "negative": [
     {
-      "prompt": "Fix the failing test.",
-      "expected_behavior": "When no current baton exists and no handoff is requested, do the ordinary work without creating .agents files or running setup or migration.",
-      "reason": "Implicit availability provides operating rules, not permission to create task state."
+      "prompt": "Fix the failing test with no task record.",
+      "expected_behavior": "Do ordinary work without creating handoff state or running setup/migration.",
+      "reason": "Ordinary work does not imply a new record."
     },
     {
-      "prompt": "Continue this task.",
-      "expected_behavior": "If the baton owner is another agent and no handoff authorization exists, stop before migration or baton writes and ask for a decision.",
-      "reason": "Owner remains a handoff coordination signal."
+      "prompt": "Review the task status only.",
+      "expected_behavior": "Read relevant current state and report without changing files.",
+      "reason": "Read-only scope applies."
     },
     {
-      "prompt": "Migrate this repository even though its old handoff files were edited locally.",
-      "expected_behavior": "Report blocked and preserve every file.",
-      "reason": "The migrator only removes files with old-protocol proof."
+      "prompt": "Archive into a directory with a different existing summary.",
+      "expected_behavior": "Preserve both the existing archive and active records; report the conflict.",
+      "reason": "Archiving must not lose either task."
     },
     {
-      "prompt": "Continue the task with an old .agents/handoff.transaction present.",
-      "expected_behavior": "Report blocked and do not invoke the old installer or modify the baton.",
-      "reason": "Only the original version may recover its transaction."
+      "prompt": "Continue a task with an old migration transaction present.",
+      "expected_behavior": "Continue the task without running cleanup or altering the transaction.",
+      "reason": "Maintenance is separate from daily work."
+    },
+    {
+      "prompt": "Migrate a repository with locally modified legacy files.",
+      "expected_behavior": "Report blocked and leave the files intact.",
+      "reason": "Cleanup still requires ownership proof."
     }
   ]
 }

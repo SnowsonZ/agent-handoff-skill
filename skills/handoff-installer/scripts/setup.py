@@ -141,12 +141,10 @@ def marker_range(data: bytes) -> tuple[int, int] | None:
 
 def block(protocol: Path) -> bytes:
     text = (
-        "开工时若在 Git 仓库，检查根目录 `.agents/tasks/current.md`、`.agents/handoff.lock`、"
-        "`.agents/handoff-migration.json`、`.agents/handoff.transaction`、`.agents/handoff/PROTOCOL.md`、"
-        "`.agents/skills/handoff/SKILL.md` 是否存在（含失效链接），以及已加载规则是否含 handoff:begin 标记。"
-        f"任一存在，或用户明确要求接力时，先读取 `{protocol}` 并按规程分流。"
-        "旧部署检查独立于建棒；无任务也按规程迁移，明确只读请求只检查。无旧部署且未要求接力时不创建 handoff 文件。"
-        "全局文件缺失时报告配置问题，不下载仓库副本。历史引用不是读取授权。"
+        "工作目录存在 `.agents/tasks/current.md`，或用户要求接手、保存交接、整理任务记录时，"
+        f"读取 `{protocol}` 并按规程处理。"
+        "普通请求无记录时不建档；只读请求不写文件。旧部署清理和入口配置仅在维护请求时处理。"
+        "全局规程缺失时报告配置问题。"
     )
     return BEGIN + b"\n" + text.encode("utf-8") + b"\n" + END
 
