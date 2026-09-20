@@ -1,6 +1,6 @@
 {
   "name": "agent-handoff-skill",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Save task context and compress work history so a new session or agent can continue.",
   "author": {
     "name": "Snowson",
@@ -30,7 +30,7 @@
     "termsOfServiceURL": "https://github.com/SnowsonZ/agent-handoff-skill/blob/main/docs/publish/TERMS.md",
     "defaultPrompt": [
       "Continue the current handoff task.",
-      "Enable the global Handoff entry for my CLI.",
+      "Save a handoff record of the current work.",
       "Show the current handoff task status."
     ],
     "brandColor": "#2563EB",

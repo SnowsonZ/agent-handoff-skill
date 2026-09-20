@@ -1,22 +1,51 @@
 # Handoff 维护
 
-日常接力见 `../PROTOCOL.md`；本页只用于安装入口、升级、旧部署清理和旧账本查询。
-这些维护操作不控制任务能否继续，任务数据不需要迁移。入口配置需要 Python 3，
+日常接力见 `../PROTOCOL.md`；本页只用于安装接线、升级、旧入口块清理、旧部署清理和旧账本查询。
+这些维护操作不控制任务能否继续，任务数据不需要迁移。旧入口块清理需要 Python 3，
 旧部署清理还需要 Git，旧账本查询需要 Git 与 sh；日常记录不要求安装这些维护工具。
 
-## 用户级入口
+## 安装与接线
 
-安装全局 Skill 后，按用户指定的客户端执行：
+安装全局 Skill：
 
 ```sh
-python3 "<skill-dir>/scripts/setup.py" enable --agents codex claude
-python3 "<skill-dir>/scripts/setup.py" status
-python3 "<skill-dir>/scripts/setup.py" disable --agents claude
+npx skills add SnowsonZ/agent-handoff-skill --skill handoff-installer --global
 ```
 
-`enable`、`disable` 需要对应请求；`status` 只读。入口指向全局规程，不向业务仓库分发载荷。
-更新 Skill 后所有已启用仓库使用新规程；从旧版升级需重新 enable 已启用客户端，以替换自动迁移入口。
-维护请求不创建或接手任务。跨客户端验证见 [compatibility.md](compatibility.md)。
+zcode 与 Kimi Code CLI 直接读取 `~/.agents/skills/`；Claude Code 通过
+`~/.claude/skills/handoff-installer` 软链接到全局安装（`npx skills` 自动创建）。
+Codex 的全局目录是 `~/.codex/skills/`，需要时补一条软链：
+
+```sh
+ln -s ~/.agents/skills/handoff-installer ~/.codex/skills/handoff-installer
+```
+
+规程只在用户明确请求（接手、保存交接、整理任务记录）时经 Skill 调用生效；存在任务数据不触发加载，
+也不向业务仓库分发任何载荷。
+
+## 旧入口块清理
+
+0.4 及更早版本会在各客户端全局约束文件写入带 `handoff:global` 标记的入口块，新版本不再使用。
+升级后检查并清理：
+
+```sh
+python3 "<skill-dir>/scripts/setup.py" status
+python3 "<skill-dir>/scripts/setup.py" disable --agents codex claude
+```
+
+`disable` 需要对应请求；`status` 只读。二者定位以下文件（`CODEX_HOME`、`CLAUDE_CONFIG_DIR`、
+`KIMI_CODE_HOME` 环境变量重定向均生效；codex 存在非空 `AGENTS.override.md` 时以该文件为准）：
+
+| 客户端 | 文件 |
+|---|---|
+| codex | `~/.codex/AGENTS.md` |
+| claude | `~/.claude/CLAUDE.md` |
+| zcode | `~/.zcode/AGENTS.md` |
+| kimi | `~/.kimi-code/AGENTS.md` |
+
+`disable` 只剥离标记块并保留文件其余内容；剥离后为空的文件（如仅含入口块的 zcode/kimi 文件）会被删除。
+`status` 全部 `clean` 时退出码为 0，报 `legacy` 表示仍有残留。维护请求不创建或接手任务。
+跨客户端验证见 [compatibility.md](compatibility.md)。
 
 ## 旧部署清理
 

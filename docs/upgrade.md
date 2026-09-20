@@ -4,20 +4,21 @@
 安装名称仍为 `handoff-installer`。任务数据无需批量迁移，旧七小节记录可以直接接手，正常更新时整理。
 旧 Git trailer 仍可用兼容账本查询，新记录不再生成它们。
 
-## 更新技能与入口
+## 更新技能与清理旧入口块
 
-安装新版 Skill 后，对已经启用的客户端重新执行 enable，将自动检查和清理旧部署的旧入口替换掉：
+安装新版 Skill 后，规程仅由用户显式请求经全局 Skill 通道加载，不再使用各客户端全局约束文件中的
+入口块。0.4 及更早版本写入的入口块需要清理：
 
 ```sh
-python3 "<skill-dir>/scripts/setup.py" enable --agents codex claude
-python3 "<skill-dir>/scripts/setup.py" status --agents codex claude
+python3 "<skill-dir>/scripts/setup.py" status
+python3 "<skill-dir>/scripts/setup.py" disable --agents codex claude
 ```
 
-可选客户端为 codex、claude、zcode、kimi。只更新实际使用的入口，不启用未请求的客户端。
-之后常规规程更新不需要改每个工作目录。已打开的会话可能仍带旧规则，新会话读取新入口。
+可选客户端为 codex、claude、zcode、kimi。`status` 报 `legacy` 表示仍有残留块，全部 `clean` 即完成。
+之后常规规程更新不需要改每个工作目录，也不需要改任何全局约束文件。
 
 本地开发可用 `python3 tools/upgrade-skill.py --copy-to /absolute/skill-copies` 更新全局安装及留存副本。
-该命令不修改业务仓库，也不重写入口；上面的 enable 负责入口更新。
+该命令不修改业务仓库，也不清理入口块；上面的 disable 负责旧块清理。
 
 ## 按需清理旧部署
 
@@ -29,5 +30,5 @@ python3 "<skill-dir>/scripts/setup.py" status --agents codex claude
 
 ## 退出
 
-`setup.py disable --agents <客户端>` 只移除所选用户级入口，不删除任务数据。
+`setup.py disable --agents <客户端>` 移除所选客户端的旧入口块；仅含入口块的文件会被删除，不删除任务数据。
 规程不会自动读取其他会话日志、全部归档或压缩前的历史原文。

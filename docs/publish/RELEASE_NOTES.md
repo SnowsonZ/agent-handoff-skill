@@ -1,3 +1,12 @@
+# v0.4.1
+
+入口块机制退役：规程仅由用户明确请求（接手、保存交接、整理任务记录）经各 CLI 的全局 Skill 通道加载，
+存在 `.agents/tasks/current.md` 不再自动触发。`setup.py` 移除 `enable`，保留 `status`/`disable`
+作为旧入口块清理工具；`disable` 剥离标记块并保留用户内容，剥离后为空的文件会被删除。
+zcode 与 Kimi Code CLI 直接读取 `~/.agents/skills/`，Claude Code 经 `~/.claude/skills` 软链接，
+Codex 实测同样从 `~/.agents/skills` 发现。任务数据格式与日常接力行为不变；
+从 0.4.0 升级需用 `setup.py status` / `disable` 清理旧入口块。
+
 # v0.4.0
 
 精简为当前任务状态与阶段历史：`current.md` 支持直接接手，`history.md` 过长时先保存原文再压缩。
